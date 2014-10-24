@@ -189,6 +189,10 @@
       return this;
     },
 
+    videoResize: function() {
+      this.e.videoResize();
+    },
+
     config: function(config) {
       this.e.setConfig(config);
     },
