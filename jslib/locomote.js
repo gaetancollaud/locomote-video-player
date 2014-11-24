@@ -45,6 +45,7 @@
 
   Locomote.prototype = {
     __embed: function(tag, swf) {
+      this.tag = tag;
 
       var guid = (function() {
         function s4() {
@@ -115,8 +116,8 @@
       this.__playerEvent('apiReady');
     },
 
-    play: function(url) {
-      this.e.play(url);
+    play: function(url, streamName) {
+      this.e.play(url, streamName);
       return this;
     },
 
@@ -188,6 +189,10 @@
       return this;
     },
 
+    videoResize: function() {
+      this.e.videoResize();
+    },
+
     config: function(config) {
       this.e.setConfig(config);
     },
@@ -232,6 +237,16 @@
         }
       });
     },
+	
+	destroy:function(){
+      this.e = null;
+      window.LocomoteMap[this.tag] = undefined;
+      if (('string' === typeof this.tag) && document.getElementById(this.tag)) {
+        document.getElementById(this.tag).innerHTML = null;
+      } else {
+        this.tag.innerHTML = null;
+      }
+	}
   };
 
   return Locomote;
