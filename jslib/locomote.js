@@ -195,6 +195,7 @@
 
     config: function(config) {
       this.e.setConfig(config);
+      return this;
     },
 
     on: function(eventName, callback) {
@@ -203,19 +204,20 @@
       if (eventName === 'apiReady' && this.swfready) {
         callback.call();
       }
+      return this;
     },
 
     off: function(eventName, callback) {
       if (!eventName && !callback) {
         this.callbacks = [];
-        return;
+        return this;
       }
 
       this.callbacks.forEach(function(element, index, array) {
         if (element.callback === callback) {
           if (!eventName || (element.eventName === eventName)) {
             array.splice(index, 1);
-            return;
+            return this;
           }
         }
 
@@ -225,6 +227,7 @@
           }
         }
       });
+      return this;
     },
 
     __playerEvent: function(eventName /* ... args */) {
@@ -237,16 +240,12 @@
         }
       });
     },
-	
-	destroy:function(){
-      this.e = null;
+
+    destroy: function() {
       window.LocomoteMap[this.tag] = undefined;
-      if (('string' === typeof this.tag) && document.getElementById(this.tag)) {
-        document.getElementById(this.tag).innerHTML = null;
-      } else {
-        this.tag.innerHTML = null;
-      }
-	}
+      this.e.parentNode.removeChild(this.e);
+      this.e = null;
+    }
   };
 
   return Locomote;

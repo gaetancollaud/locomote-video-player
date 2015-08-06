@@ -48,7 +48,7 @@ package com.axis.rtspclient {
       }
 
       if (sdp.getMediaBlock('audio')) {
-        createAudioSpecificConfigTag(ByteArrayUtils.createFromHexstring(sdp.getMediaBlock('audio').fmtp['config']));
+        createAudioSpecificConfigTag(sdp.getMediaBlock('audio'));
       }
 
       pushData();
@@ -130,8 +130,26 @@ package com.axis.rtspclient {
         var bit_depth_chroma_minus8:uint = sps.readUnsignedExpGolomb();
         var qpprime_y_zero_transform_bypass_flag:uint = sps.readBits(1);
         var seq_scaling_matrix_present_flag:uint = sps.readBits(1);
-        if (1 === seq_scaling_matrix_present_flag) {
-          ErrorManager.dispatchError(822, null, true);
+
+        if (seq_scaling_matrix_present_flag) {
+          var i:uint = 0;
+          var loopCount: uint = (3 === chroma_format_idc) ? 12 : 8;
+          for (i = 0; i < loopCount; i++) {
+            var seq_scaling_list_present_flag:uint = sps.readBits(1);
+            if (seq_scaling_list_present_flag) {
+              var sizeOfScalingList:uint = (i < 6) ? 16 : 64;
+              var lastScale:uint = 8;
+              var nextScale:uint = 8;
+              var j:uint = 0;
+              for (j = 0; j < sizeOfScalingList; j++) {
+                if (nextScale != 0) {
+                  var delta_scale:uint = sps.readSignedExpGolomb();
+                  nextScale = (lastScale + delta_scale + 256) % 256;
+                }
+                lastScale = (nextScale == 0) ? lastScale : nextScale;
+              }
+            }
+          }
         }
       }
 
@@ -197,7 +215,7 @@ package com.axis.rtspclient {
         height          : params.height,
         avcprofile      : params.profile,
         avclevel        : params.level,
-        metadatacreator : "Slush FLV Muxer",
+        metadatacreator : "Locomote FLV Muxer",
         creationdate    : new Date().toString()
       });
 
@@ -271,7 +289,28 @@ package com.axis.rtspclient {
       }
     }
 
-    public function createAudioSpecificConfigTag(config:ByteArray):void {
+    private function getAudioParameters(name:String):Object {
+      switch (name.toLowerCase()) {
+      case 'mpeg4-generic':
+        return {
+          format: 0xA, /* AAC */
+          sampling: 0x3, /* Should alway be 0x3. Actual rate is determined by AAC header. */
+          depth: 0x1, /* 16 bits per sample */
+          type: 0x1 /* Stereo */
+        };
+      case 'pcma':
+        return {
+          format: 0x7, /* Logarithmic G.711 A-law  */
+          sampling: 0x0, /* Doesn't matter. Rate is fixed at 8 kHz when format = 0x7 */
+          depth: 0x1, /* 16 bits per sample, but why? */
+          type: 0x0 /* Mono */
+        };
+      default:
+        return false;
+      }
+    }
+
+    public function createAudioSpecificConfigTag(config:Object):void {
       var start:uint = container.position;
 
       /* FLV Tag */
@@ -282,12 +321,24 @@ package com.axis.rtspclient {
       container.writeByte(0x00); // StreamID - always 0
       container.writeByte(0x00); // StreamID - always 0
 
-      /* Audio Tag Header */
-      container.writeByte(0xA << 4 | 0x3 << 2 | 0x1 << 1 | 0x0 << 0); // Format << 4 | Sampling << 2 | Size << 1 | Type << 0
-      container.writeByte(0x0); // AAC Sequence Header
+      var audioParams:Object;
+      for (var pt:Object in config.rtpmap) {
+        audioParams = getAudioParameters(config.rtpmap[pt].name);
+        if (false !== audioParams) {
+          break;
+        }
+        /* Didn't get any params on first type, and multiple types are not supported. */
+        ErrorManager.dispatchError(831, [ config.rtpmap[pt].name ], true);
+      }
 
-      /* AudioSpecificConfig */
-      container.writeBytes(config);
+      /* Audio Tag Header */
+      container.writeByte(audioParams.format << 4 | audioParams.sampling << 2 | audioParams.depth << 1 | audioParams.type << 0);
+
+      if (0xA === audioParams.format) {
+        /* A little more setup required if this is AAC */
+        container.writeByte(0x0); // AAC Sequence Header
+        container.writeBytes(ByteArrayUtils.createFromHexstring(config.fmtp['config']));
+      }
 
       var size:uint = container.position - start;
 
@@ -338,9 +389,9 @@ package com.axis.rtspclient {
       container.writeUnsignedInt(size + 11);
     }
 
-    public function createAudioTag(aacframe:AACFrame):void {
+    public function createAudioTag(name:String, frame:*):void {
       var start:uint = container.position;
-      var ts:uint = aacframe.timestamp;
+      var ts:uint = frame.timestamp;
       if (audioInitialTimestamp === -1) {
         audioInitialTimestamp = ts;
       }
@@ -355,12 +406,22 @@ package com.axis.rtspclient {
       container.writeByte(0x00); // StreamID - always 0
       container.writeByte(0x00); // StreamID - always 0
 
+      var audioParams:Object = getAudioParameters(name);
+      if (false === audioParams) {
+        /* No audio params for this name. */
+        ErrorManager.dispatchError(831, [ name ], true);
+      }
+
       /* Audio Tag Header */
-      container.writeByte(0xA << 4 | 0x3 << 2 | 0x1 << 1 | 0x1 << 0); // Format << 4 | Sampling << 2 | Size << 1 | Type << 0
-      container.writeByte(0x1); // AAC Raw
+      container.writeByte(audioParams.format << 4 | audioParams.sampling << 2 | audioParams.depth << 1 | audioParams.type << 0);
+
+      if (0xA === audioParams.format) {
+        /* A little more setup required if this is AAC */
+        container.writeByte(0x1); // AAC Raw
+      }
 
       /* Audio Data */
-      aacframe.writeStream(container);
+      frame.writeStream(container);
 
       var size:uint = container.position - start;
 
@@ -406,7 +467,12 @@ package com.axis.rtspclient {
     }
 
     public function onAACFrame(aacframe:AACFrame):void {
-      createAudioTag(aacframe);
+      createAudioTag('mpeg4-generic', aacframe);
+      pushData();
+    }
+
+    public function onPCMAFrame(pcmaframe:PCMAFrame):void {
+      createAudioTag('pcma', pcmaframe);
       pushData();
     }
 

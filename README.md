@@ -96,7 +96,7 @@ For more info about socket policy files and how to set up a server please read t
 
 ## API Specification
 
-### Construction
+### Construction / Destruction
 
 #### Locomote(element, url)
 
@@ -107,6 +107,16 @@ For more info about socket policy files and how to set up a server please read t
 > The second argument is the URL to the player SWF.
 
 > The player will load asynchronously. When the player is loaded an `apiReady` event is sent. Before the `apiReady` event, no API methods can be used except `on` and `off`.
+
+#### destroy()
+
+> Will remove the tag from the element is was embedded to and remove all references
+> to it held by the javascript library. This can be called as any other action. E.g.
+>
+```javascript
+var locomote = new Locomote('player', 'Player.swf');
+locomote.destroy();
+```
 
 ### Actions
 
@@ -124,6 +134,7 @@ For more info about socket policy files and how to set up a server please read t
 > - `rtmps` - RTMP over SSL
 > - `http` - Progressive download via HTTP
 > - `https` - Progressive download via HTTP over SSL
+> - `httpm` - [MJPEG over HTTP][MJPEG/HTTP] (via multipart/x-mixed-replace)
 
 #### stop()
 
@@ -149,17 +160,18 @@ For more info about socket policy files and how to set up a server please read t
 
 #### streamStatus()
 
-> Returns a status object with the following data:
+> Returns a status object with the following data (if an entry is unknown, that value will be null):
 
 > - fps - frames per second.
 > - resolution (object) - the stream size `{ width, height }`.
-> - playback speed - current playback speed. 1.0 is normal stream speed.
+> - playbackSpeed - current playback speed. 1.0 is normal stream speed.
 > - current time - ms from start of stream.
 > - protocol - which high-level transport protocol is in use.
 > - audio (bool) - if the stream contains audio.
 > - video (bool) - if the stream contains video.
 > - state - current playback state (playing, paused, stopped).
 > - streamURL - the source of the current media.
+> - duration - the duration of the currently playing media, or -1 if not available
 
 #### playerStatus()
 
@@ -322,3 +334,4 @@ The Flash Builder project files and build folders will be ignored by git automat
 [RTMP]: http://www.adobe.com/devnet/rtmp.html
 [ErrorManager]: https://github.com/AxisCommunications/locomote-video-player/blob/master/src/com/axis/ErrorManager.as
 [NetStream:seek]: http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#seek()
+[MJPEG/HTTP]: http://en.wikipedia.org/wiki/Motion_JPEG#M-JPEG_over_HTTP
