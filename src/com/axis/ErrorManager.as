@@ -116,7 +116,8 @@ package com.axis {
       '831': "Unsupported Audio or Video format: %p",
       '832': "Unable to set frame by frame. This might not work for this stream-type, or this particular stream.",
       '833': "Failed to load mjpeg image.",
-      '834': "Unable to set keep alive interval"
+      '834': "Unable to set keep alive interval",
+      '840': "Unable to take screenshot of the player to freeze the image"
     };
 
     public static function dispatchError(errorCode:Number, errorData:Array = null, throwError:Boolean = false):void {

@@ -14,6 +14,7 @@ package {
   import com.axis.rtspclient.RTSPoverHTTPAPHandle;
   import com.axis.rtspclient.RTSPoverTCPHandle;
 
+  import flash.display.IBitmapDrawable;
   import flash.display.LoaderInfo;
   import flash.display.Sprite;
   import flash.display.Stage;
@@ -30,7 +31,10 @@ package {
   import flash.media.SoundTransform;
   import flash.media.Video;
   import flash.net.NetStream;
+  import flash.utils.ByteArray;
   import flash.system.Security;
+  import mx.controls.SWFLoader;
+  import mx.graphics.ImageSnapshot;
   import mx.utils.StringUtil;
 
   [SWF(frameRate="60")]
@@ -69,6 +73,7 @@ package {
     private var streamHasVideo:Boolean = false;
     private var newPlaylistItem:Boolean = false;
     private var startOptions:Object = null;
+    private var snapshotLoader:SWFLoader = new SWFLoader();
 
     public function Player() {
       var self:Player = this;
@@ -300,7 +305,8 @@ package {
         return;
       }
 
-      addChild(this.client.getDisplayObject());
+      this.removeChildren();
+      this.addChild(this.client.getDisplayObject());
 
       client.addEventListener(ClientEvent.STOPPED, onStopped);
       client.addEventListener(ClientEvent.START_PLAY, onStartPlay);
@@ -329,13 +335,30 @@ package {
       }
     }
 
+    private function freezeImage():void {
+      if(this.client){
+        try{
+          var imageSnap:ImageSnapshot = ImageSnapshot.captureImage(this.client.getDisplayObject());
+          var imageByteArray:ByteArray = imageSnap.data as ByteArray;
+          snapshotLoader.load(imageByteArray);
+          this.removeChildren();
+          this.addChild(snapshotLoader);
+        }catch(err:Error){
+          ErrorManager.dispatchError(840);
+        }
+      }
+    }
+
     public function resume():void {
       if (!client || !client.resume()) {
         ErrorManager.dispatchError(809);
       }
     }
 
-    public function stop():void {
+    public function stop(freezeImage:Boolean=false):void {
+      if(freezeImage){
+        this.freezeImage();
+      }
       if (!client || !client.stop()) {
         ErrorManager.dispatchError(810);
         return;
@@ -460,7 +483,7 @@ package {
     }
 
     private function onStopped(event:ClientEvent):void {
-      this.removeChild(this.client.getDisplayObject());
+      this.removeChildren();
       this.client.removeEventListener(ClientEvent.STOPPED, onStopped);
       this.client.removeEventListener(ClientEvent.START_PLAY, onStartPlay);
       this.client.removeEventListener(ClientEvent.PAUSED, onPaused);
