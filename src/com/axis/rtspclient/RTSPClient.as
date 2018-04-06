@@ -186,7 +186,6 @@ package com.axis.rtspclient {
     }
 
     public function stop():Boolean {
-      dispatchEvent(new ClientEvent(ClientEvent.STOPPED));
       this.ns.dispose();
       bcTimer.stop();
 
@@ -201,6 +200,7 @@ package com.axis.rtspclient {
       nc.removeEventListener(NetStatusEvent.NET_STATUS, onNetStatusError);
       nc.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, onSecurityError);
 
+      dispatchEvent(new ClientEvent(ClientEvent.STOPPED));
       return true;
     }
 

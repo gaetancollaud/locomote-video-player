@@ -206,6 +206,16 @@
       return this;
     },
 
+    freezeImage: function() {
+      this.e.freezeImage();
+      return this;
+    },
+
+    unfreezeImage: function() {
+      this.e.unfreezeImage();
+      return this;
+    },
+
     on: function(eventName, callback) {
       this.callbacks.push({ eventName: eventName, callback: callback });
 

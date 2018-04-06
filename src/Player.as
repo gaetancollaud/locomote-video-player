@@ -23,6 +23,8 @@ package {
   import flash.display.StageScaleMode;
   import flash.display.DisplayObject;
   import flash.display.InteractiveObject;
+  import flash.display.BitmapData;
+  import flash.display.MovieClip;
   import flash.events.Event;
   import flash.events.MouseEvent;
   import flash.external.ExternalInterface;
@@ -35,7 +37,13 @@ package {
   import flash.system.Security;
   import mx.controls.SWFLoader;
   import mx.graphics.ImageSnapshot;
+  import mx.graphics.codec.IImageEncoder;
+  import mx.graphics.codec.PNGEncoder;
+  import mx.graphics.codec.JPEGEncoder;
   import mx.utils.StringUtil;
+  import MyEncoder;
+  import mx.controls.Button;
+  import flash.utils.*;
 
   [SWF(frameRate="60")]
   [SWF(backgroundColor="#efefef")]
@@ -74,6 +82,9 @@ package {
     private var newPlaylistItem:Boolean = false;
     private var startOptions:Object = null;
     private var snapshotLoader:SWFLoader = new SWFLoader();
+    private var snapshotSuccess:Boolean = false;
+//    private var snapshotEncoder:IImageEncoder = new PNGEncoder();
+    private var snapshotEncoder:IImageEncoder = new MyEncoder();
 
     public function Player() {
       var self:Player = this;
@@ -108,6 +119,13 @@ package {
       });
 
       this.setConfig(Player.config);
+
+
+      ImageSnapshot.defaultEncoder=PNGEncoder;
+
+
+//      setInterval(updateSnapshot, 1000);
+
     }
 
     /**
@@ -135,6 +153,8 @@ package {
       ExternalInterface.addCallback("unmuteMicrophone", unmuteMicrophone);
       ExternalInterface.addCallback("setConfig", setConfig);
       ExternalInterface.addCallback("loadPolicyFile", loadPolicyFile);
+      ExternalInterface.addCallback("freezeImage", freezeImage);
+      ExternalInterface.addCallback("unfreezeImage", unfreezeImage);
 
       /* Audio Transmission API */
       ExternalInterface.addCallback("startAudioTransmit", startAudioTransmit);
@@ -335,17 +355,26 @@ package {
       }
     }
 
-    private function freezeImage():void {
+    public function freezeImage():void {
+//      if(this.client){
+//        // take a snaphot and display it
+//        updateSnapshot();
+//        if(snapshotSuccess){
+//          try{
+//            this.removeChildren();
+//            this.addChild(snapshotLoader);
+//          }catch(err:Error){
+//              ErrorManager.dispatchError(840, [err.getStackTrace()]);
+//          }
+//        }
+//      }
+    }
+
+    public function unfreezeImage():void {
+      // put back the player
+      this.removeChildren();
       if(this.client){
-        try{
-          var imageSnap:ImageSnapshot = ImageSnapshot.captureImage(this.client.getDisplayObject());
-          var imageByteArray:ByteArray = imageSnap.data as ByteArray;
-          snapshotLoader.load(imageByteArray);
-          this.removeChildren();
-          this.addChild(snapshotLoader);
-        }catch(err:Error){
-          ErrorManager.dispatchError(840);
-        }
+        this.addChild(this.client.getDisplayObject());
       }
     }
 
@@ -355,14 +384,13 @@ package {
       }
     }
 
-    public function stop(freezeImage:Boolean=false):void {
-      if(freezeImage){
-        this.freezeImage();
-      }
+    public function stop():void {
       if (!client || !client.stop()) {
         ErrorManager.dispatchError(810);
         return;
       }
+
+
 
       this.currentState = "stopped";
       this.streamHasAudio = false;
@@ -475,6 +503,51 @@ package {
     private function onStartPlay(event:ClientEvent):void {
       this.currentState = "playing";
       this.callAPI(EVENT_STREAM_STARTED);
+
+
+
+    }
+
+    private function javascriptLog(msg:String){
+      try{
+        ExternalInterface.call("console.log(`"+Player.locomoteID+":"+msg+"`)");
+      }catch(err:Error){
+
+      }
+    }
+
+    private function updateSnapshot(){
+      try{
+          if(this.client){
+//          var imageSnap:ImageSnapshot = ImageSnapshot.captureImage(this.client.getDisplayObject());
+//            var imageSnap:BitmapData= ImageSnapshot.captureBitmapData(this.client.getDisplayObject());
+//
+//            var obj:MovieClip = new MovieClip();
+//            obj.addChild(this.client.getDisplayObject());
+
+            var obj:Stage = this.client.getDisplayObject().stage;
+
+            var imageSnap:BitmapData = new BitmapData(obj.stageWidth, obj.stageHeight);
+            imageSnap.draw(obj);
+
+
+            if(imageSnap){
+              var imageByteArray:ByteArray = snapshotEncoder.encode(imageSnap);
+    //        var imageSnap:ImageSnapshot = ImageSnapshot.captureImage(this);
+    //        var imageByteArray:ByteArray = imageSnap.data as ByteArray;
+              snapshotLoader.load(imageByteArray);
+              snapshotSuccess = true;
+              javascriptLog('Snapshot success !');
+            }else{
+              javascriptLog('Snapshot empty');
+            }
+          }else{
+            javascriptLog('no client');
+          }
+      }catch(err:Error){
+        javascriptLog(err.getStackTrace().split("\\").join("\\\\"))
+      }
+
     }
 
     private function onPaused(event:ClientEvent):void {
@@ -483,7 +556,20 @@ package {
     }
 
     private function onStopped(event:ClientEvent):void {
-      this.removeChildren();
+
+      javascriptLog('stoped');
+      // take a snaphot and display it
+      updateSnapshot();
+      if(snapshotSuccess){
+        try{
+          this.removeChildren();
+          this.addChild(snapshotLoader);
+        }catch(err:Error){
+          ErrorManager.dispatchError(840, [err.getStackTrace()]);
+        }
+      }
+
+
       this.client.removeEventListener(ClientEvent.STOPPED, onStopped);
       this.client.removeEventListener(ClientEvent.START_PLAY, onStartPlay);
       this.client.removeEventListener(ClientEvent.PAUSED, onPaused);

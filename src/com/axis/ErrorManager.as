@@ -117,7 +117,7 @@ package com.axis {
       '832': "Unable to set frame by frame. This might not work for this stream-type, or this particular stream.",
       '833': "Failed to load mjpeg image.",
       '834': "Unable to set keep alive interval",
-      '840': "Unable to take screenshot of the player to freeze the image"
+      '840': "Unable to take screenshot of the player to freeze the image %p"
     };
 
     public static function dispatchError(errorCode:Number, errorData:Array = null, throwError:Boolean = false):void {

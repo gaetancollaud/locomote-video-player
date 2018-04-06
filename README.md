@@ -150,9 +150,12 @@ locomote.destroy();
 > - `httpUrl` - The URL to use in HTTP requests if it differs from the RTSP
     URL. This is only supported by the `rtsp[h|hs]` (Note: not supported by `rtsphap`) protocol
 
-#### stop()
+#### stop(freezeImage=false)
 
 > Stops video stream.
+>
+> If _freezeImage_ is true, the player will take a screenshot of the player and keep the image displayed even when the stream is stopped. 
+> This can be useful for stream you cannot pause. 
 
 #### seek(offset)
 
