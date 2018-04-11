@@ -143,6 +143,11 @@
       return this;
     },
 
+    clear: function() {
+      this.e.clear();
+      return this;
+    },
+
     playFrames: function(timestamp) {
       this.e.playFrames(timestamp);
       return this;

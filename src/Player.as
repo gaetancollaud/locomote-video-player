@@ -131,6 +131,7 @@ package {
       ExternalInterface.addCallback("unmuteMicrophone", unmuteMicrophone);
       ExternalInterface.addCallback("setConfig", setConfig);
       ExternalInterface.addCallback("loadPolicyFile", loadPolicyFile);
+      ExternalInterface.addCallback("clear", clear);
 
       /* Audio Transmission API */
       ExternalInterface.addCallback("startAudioTransmit", startAudioTransmit);
@@ -463,6 +464,10 @@ package {
     private function onPaused(event:ClientEvent):void {
       this.currentState = "paused";
       this.callAPI(EVENT_STREAM_PAUSED, event.data);
+    }
+
+    public function clear():void{
+      this.removeChildren();
     }
 
     private function onStopped(event:ClientEvent):void {
